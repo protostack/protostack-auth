@@ -7,6 +7,8 @@ export interface IUser extends mongoose.Document {
   created: Date;
   twoFASecret?: string;
   twoFAEnabled?: boolean;
+  passwordResetToken?: string;
+  passwordResetExpiry?: Date;
 }
 
 const userSchema = new mongoose.Schema({
@@ -16,6 +18,8 @@ const userSchema = new mongoose.Schema({
   created: { type: Date, default: Date.now() },
   twoFASecret: String,
   twoFAEnabled: Boolean,
+  passwordResetToken: { type: String, unique: true },
+  passwordResetExpiry: Date,
 });
 
 export default userSchema;

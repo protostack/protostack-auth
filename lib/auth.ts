@@ -42,6 +42,8 @@ class Auth {
       ...user.toObject(),
       authorized,
     };
+    delete payload.password;
+
     const token = jwt.sign(payload, this.secret, {
       expiresIn: this.tokenExpiry,
     });
@@ -143,6 +145,65 @@ class Auth {
 
   public verifyToken(token: string) {
     return jwt.verify(token, this.secret);
+  }
+
+  public async changePassword(
+    userId: string,
+    oldPassword: string,
+    newPassword: string,
+  ) {
+    const user = await this.UserModel.findById(userId);
+    if (!user) {
+      throw new Error('User not found.');
+    }
+
+    const validPassword = await bcrypt.compare(oldPassword, user.password);
+    if (!validPassword) {
+      throw new Error('Old password incorrect.');
+    }
+
+    const newPasswordHash = await bcrypt.hash(newPassword, 10);
+    user.password = newPasswordHash;
+    await user.save();
+
+    return true;
+  }
+
+  public async generatePasswordResetToken(userId: string) {
+    const secret = speakeasy.generateSecret();
+    const expiry = new Date();
+    expiry.setHours(expiry.getHours() + 1);
+    await this.UserModel.updateOne(
+      { _id: userId },
+      { passwordResetToken: secret.base32, passwordResetExpiry: expiry },
+    );
+
+    return secret.base32;
+  }
+
+  public async resetPassword(passwordResetToken: string, newPassword: string) {
+    const user = await this.UserModel.findOne({ passwordResetToken });
+    if (!user) {
+      throw new Error('User not found.');
+    }
+    if (new Date() > user.passwordResetExpiry) {
+      throw new Error('Password reset token has expired.');
+    }
+
+    const validToken = speakeasy.totp.verify({
+      secret: user.passwordResetToken,
+      encoding: 'base32',
+      token: passwordResetToken,
+    });
+    if (!validToken) {
+      throw new Error('Invalid password reset.');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    user.password = passwordHash;
+    await user.save();
+
+    return true;
   }
 }
 
