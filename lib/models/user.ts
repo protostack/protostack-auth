@@ -6,14 +6,16 @@ export interface IUser extends mongoose.Document {
   role: string;
   created: Date;
   twoFASecret?: string;
+  twoFAEnabled?: boolean;
 }
 
 const userSchema = new mongoose.Schema({
   email: { index: true, required: true, type: String, unique: true },
   password: { type: String, required: true },
   role: String,
-  twoFASecret: String,
   created: { type: Date, default: Date.now() },
+  twoFASecret: String,
+  twoFAEnabled: Boolean,
 });
 
 export default userSchema;

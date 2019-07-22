@@ -98,7 +98,8 @@ class Auth {
       throw new Error('Incorrect password.');
     }
 
-    const token = this.createToken(user, this.requireTwoFA);
+    const twoFARequired = this.requireTwoFA || user.twoFAEnabled;
+    const token = this.createToken(user, !twoFARequired);
 
     return {
       user,
@@ -118,6 +119,13 @@ class Auth {
 
   public async verifyTwoFA(userId: string, twoFAToken: string) {
     const user = await this.UserModel.findById(userId);
+
+    if (!user) {
+      throw new Error('User not found.');
+    }
+    if (!user.twoFASecret) {
+      throw new Error('User has not set up two fa.');
+    }
 
     const verified = speakeasy.totp.verify({
       secret: user.twoFASecret,
