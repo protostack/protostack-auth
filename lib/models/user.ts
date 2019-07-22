@@ -18,7 +18,7 @@ const userSchema = new mongoose.Schema({
   created: { type: Date, default: Date.now() },
   twoFASecret: String,
   twoFAEnabled: Boolean,
-  passwordResetToken: { type: String, unique: true },
+  passwordResetToken: { type: String, unique: true, index: true },
   passwordResetExpiry: Date,
 });
 
