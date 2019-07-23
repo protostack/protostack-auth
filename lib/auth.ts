@@ -2,6 +2,7 @@ import * as mongoose from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import * as jwt from 'jsonwebtoken';
 import * as speakeasy from 'speakeasy';
+import * as crypto from 'crypto';
 import userSchema, { IUser } from './models/user';
 
 export interface AuthOptions {
@@ -180,15 +181,15 @@ class Auth {
   public async generatePasswordResetToken(userId: string) {
     await this.connectPromise;
 
-    const secret = speakeasy.generateSecret();
-    const expiry = new Date();
-    expiry.setHours(expiry.getHours() + 1);
+    const passwordResetToken = crypto.randomBytes(20).toString('hex');
+    const passwordResetExpiry = new Date();
+    passwordResetExpiry.setHours(passwordResetExpiry.getHours() + 1);
     await this.UserModel.updateOne(
       { _id: userId },
-      { passwordResetToken: secret.base32, passwordResetExpiry: expiry },
+      { passwordResetToken, passwordResetExpiry },
     );
 
-    return secret.base32;
+    return passwordResetToken;
   }
 
   public async resetPassword(passwordResetToken: string, newPassword: string) {
@@ -202,11 +203,7 @@ class Auth {
       throw new Error('Password reset token has expired.');
     }
 
-    const validToken = speakeasy.totp.verify({
-      secret: user.passwordResetToken,
-      encoding: 'base32',
-      token: passwordResetToken,
-    });
+    const validToken = passwordResetToken === user.passwordResetToken;
     if (!validToken) {
       throw new Error('Invalid password reset.');
     }
