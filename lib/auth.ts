@@ -90,6 +90,8 @@ class Auth {
       throw new Error('Password is required.');
     }
 
+    await this.connectPromise;
+
     const user = await this.UserModel.findOne({ email });
     if (!user) {
       throw new Error('Email not found.');
@@ -110,6 +112,8 @@ class Auth {
   }
 
   public async generateTwoFASecret(userId: string) {
+    await this.connectPromise;
+
     const secret = speakeasy.generateSecret();
     await this.UserModel.updateOne(
       { _id: userId },
@@ -120,6 +124,8 @@ class Auth {
   }
 
   public async verifyTwoFA(userId: string, twoFAToken: string) {
+    await this.connectPromise;
+
     const user = await this.UserModel.findById(userId);
 
     if (!user) {
@@ -152,6 +158,8 @@ class Auth {
     oldPassword: string,
     newPassword: string,
   ) {
+    await this.connectPromise;
+
     const user = await this.UserModel.findById(userId);
     if (!user) {
       throw new Error('User not found.');
@@ -170,6 +178,8 @@ class Auth {
   }
 
   public async generatePasswordResetToken(userId: string) {
+    await this.connectPromise;
+
     const secret = speakeasy.generateSecret();
     const expiry = new Date();
     expiry.setHours(expiry.getHours() + 1);
@@ -182,6 +192,8 @@ class Auth {
   }
 
   public async resetPassword(passwordResetToken: string, newPassword: string) {
+    await this.connectPromise;
+
     const user = await this.UserModel.findOne({ passwordResetToken });
     if (!user) {
       throw new Error('User not found.');
