@@ -2,12 +2,14 @@ import * as mongoose from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import * as jwt from 'jsonwebtoken';
 import * as speakeasy from 'speakeasy';
+import AccessControl from './access-control';
 import userSchema, { IUser } from './models/user';
 
 export interface AuthOptions {
   mongodbUri: string;
   secret: string;
   requireTwoFA?: boolean;
+  useAccessControl?: boolean;
   tokenExpiry?: number | string;
 }
 
@@ -15,16 +17,25 @@ class Auth {
   private connectPromise: Promise<void>;
   private readonly secret: string;
   private readonly requireTwoFA: boolean;
+  private readonly useAccessControl: boolean;
+  private accessControl: AccessControl;
   private readonly tokenExpiry: number | string;
 
   private UserModel: mongoose.Model<IUser>;
 
-  constructor({ mongodbUri, requireTwoFA, secret, tokenExpiry }: AuthOptions) {
-    this.connectPromise = this.connectToMongo(mongodbUri);
-
+  constructor({
+    mongodbUri,
+    secret,
+    requireTwoFA,
+    tokenExpiry,
+    useAccessControl,
+  }: AuthOptions) {
     this.secret = secret;
     this.requireTwoFA = requireTwoFA;
     this.tokenExpiry = tokenExpiry || '30d';
+    this.useAccessControl = useAccessControl || false;
+
+    this.connectPromise = this.connectToMongo(mongodbUri);
   }
 
   private connectToMongo(connectionString: string): Promise<void> {
@@ -32,17 +43,29 @@ class Auth {
       const conn = mongoose.createConnection(connectionString);
       this.UserModel = conn.model<IUser>('users', userSchema);
 
+      if (this.useAccessControl) {
+        this.accessControl = new AccessControl(conn);
+      }
+
       conn.once('open', () => resolve());
       conn.on('error', err => reject(err));
     });
   }
 
-  private createToken(user: IUser, authorized: boolean) {
+  private async createToken(user: IUser, authorized: boolean) {
     const payload = {
       ...user.toObject(),
       authorized,
     };
     delete payload.password;
+
+    if (this.accessControl) {
+      const permissions = await this.accessControl.getPermissionsByRole(
+        user.role,
+      );
+      payload.permissions =
+        permissions && permissions.length ? permissions : [];
+    }
 
     const token = jwt.sign(payload, this.secret, {
       expiresIn: this.tokenExpiry,
