@@ -7,8 +7,8 @@
   "scripts": {
     "build": "run-s format:fix fix lint tsc",
     "tsc": "node node_modules/typescript/bin/tsc",
-    "lint": "node_modules/tslint/bin/tslint -c tslint.json -p tsconfig.json --force",
-    "fix": "node_modules/tslint/bin/tslint -c tslint.json -p tsconfig.json --fix --force",
+    "lint": "tslint -c tslint.json -p tsconfig.json --force",
+    "fix": "tslint -c tslint.json -p tsconfig.json --fix --force",
     "format:fix": "pretty-quick --staged",
     "format:all": "prettier --config ./.prettierrc --write \"app/**/*{.ts,.js,.json,.css,.scss}\""
   },
