@@ -2,6 +2,7 @@ import * as mongoose from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import * as jwt from 'jsonwebtoken';
 import * as speakeasy from 'speakeasy';
+import * as crypto from 'crypto';
 import userSchema, { IUser } from './models/user';
 
 export interface AuthOptions {
@@ -90,6 +91,8 @@ class Auth {
       throw new Error('Password is required.');
     }
 
+    await this.connectPromise;
+
     const user = await this.UserModel.findOne({ email });
     if (!user) {
       throw new Error('Email not found.');
@@ -110,6 +113,8 @@ class Auth {
   }
 
   public async generateTwoFASecret(userId: string) {
+    await this.connectPromise;
+
     const secret = speakeasy.generateSecret();
     await this.UserModel.updateOne(
       { _id: userId },
@@ -120,6 +125,8 @@ class Auth {
   }
 
   public async verifyTwoFA(userId: string, twoFAToken: string) {
+    await this.connectPromise;
+
     const user = await this.UserModel.findById(userId);
 
     if (!user) {
@@ -152,6 +159,8 @@ class Auth {
     oldPassword: string,
     newPassword: string,
   ) {
+    await this.connectPromise;
+
     const user = await this.UserModel.findById(userId);
     if (!user) {
       throw new Error('User not found.');
@@ -170,18 +179,22 @@ class Auth {
   }
 
   public async generatePasswordResetToken(userId: string) {
-    const secret = speakeasy.generateSecret();
-    const expiry = new Date();
-    expiry.setHours(expiry.getHours() + 1);
+    await this.connectPromise;
+
+    const passwordResetToken = crypto.randomBytes(20).toString('hex');
+    const passwordResetExpiry = new Date();
+    passwordResetExpiry.setHours(passwordResetExpiry.getHours() + 1);
     await this.UserModel.updateOne(
       { _id: userId },
-      { passwordResetToken: secret.base32, passwordResetExpiry: expiry },
+      { passwordResetToken, passwordResetExpiry },
     );
 
-    return secret.base32;
+    return passwordResetToken;
   }
 
   public async resetPassword(passwordResetToken: string, newPassword: string) {
+    await this.connectPromise;
+
     const user = await this.UserModel.findOne({ passwordResetToken });
     if (!user) {
       throw new Error('User not found.');
@@ -190,11 +203,7 @@ class Auth {
       throw new Error('Password reset token has expired.');
     }
 
-    const validToken = speakeasy.totp.verify({
-      secret: user.passwordResetToken,
-      encoding: 'base32',
-      token: passwordResetToken,
-    });
+    const validToken = passwordResetToken === user.passwordResetToken;
     if (!validToken) {
       throw new Error('Invalid password reset.');
     }
